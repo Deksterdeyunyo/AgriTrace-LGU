@@ -1,0 +1,5 @@
+{
+  "name": "AgriTrace LGU",
+  "description": "Audit-ready agricultural management system for LGUs with Supabase integration, geolocation, and batch traceability.",
+  "requestFramePermissions": ["geolocation"]
+}
