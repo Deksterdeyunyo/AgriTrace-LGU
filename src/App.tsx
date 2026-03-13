@@ -41,14 +41,69 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
+      if (session) {
+        seedInitialData();
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        seedInitialData();
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  async function seedInitialData() {
+    const requestedPrograms = [
+      { name: 'Organic Fertilizer Program', funding_year: 2026 },
+      { name: 'Inorganic Fertilizer Support', funding_year: 2026 },
+      { name: 'Livestock Deworming Initiative', funding_year: 2026 },
+      { name: 'Anti-Rabies Campaign', funding_year: 2026 },
+      { name: 'Pesticide & Pest Control', funding_year: 2026 }
+    ];
+
+    for (const prog of requestedPrograms) {
+      const { data: existing } = await supabase
+        .from('programs')
+        .select('id')
+        .eq('name', prog.name)
+        .single();
+
+      if (!existing) {
+        const { data: newProg } = await supabase
+          .from('programs')
+          .insert([prog])
+          .select()
+          .single();
+
+        if (newProg) {
+          // Add sample inventory for this program
+          const sampleItems: any = {
+            'Organic Fertilizer Program': { item_name: 'Premium Organic Compost', unit: 'Bags', quantity: 500 },
+            'Inorganic Fertilizer Support': { item_name: 'Urea 46-0-0', unit: 'Bags', quantity: 200 },
+            'Livestock Deworming Initiative': { item_name: 'Albendazole Oral Suspension', unit: 'Bottles', quantity: 100 },
+            'Anti-Rabies Campaign': { item_name: 'Rabies Vaccine (Vial)', unit: 'Vials', quantity: 300 },
+            'Pesticide & Pest Control': { item_name: 'Broad Spectrum Insecticide', unit: 'Liters', quantity: 50 }
+          };
+
+          const item = sampleItems[prog.name];
+          if (item) {
+            await supabase.from('inventory').insert([{
+              ...item,
+              batch_number: `BATCH-${prog.funding_year}-${Math.floor(Math.random() * 1000)}`,
+              supplier: 'DA-RFO7',
+              storage_location: 'Warehouse A',
+              expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              program_id: newProg.id
+            }]);
+          }
+        }
+      }
+    }
+  }
 
   if (loading) {
     return (

@@ -226,6 +226,20 @@ export default function Inventory() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Program / Category</label>
+                  <select 
+                    required
+                    value={formData.program_id}
+                    onChange={(e) => setFormData({...formData, program_id: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select Program...</option>
+                    {programs.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.funding_year})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <label className="text-xs font-bold text-stone-400 uppercase">Supplier / Origin</label>
                   <select 
                     required
@@ -237,6 +251,7 @@ export default function Inventory() {
                     <option value="PhilRice">PhilRice</option>
                     <option value="DA-RFO7">DA-RFO7</option>
                     <option value="Private Contractor">Private Contractor</option>
+                    <option value="LGU Local Budget">LGU Local Budget</option>
                   </select>
                 </div>
                 <div className="space-y-2">
