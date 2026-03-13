@@ -7,13 +7,33 @@ import {
   CheckCircle2, 
   Clock,
   MoreHorizontal,
-  FileText
+  FileText,
+  X,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Recipients() {
   const [recipients, setRecipients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const [formData, setFormData] = useState({
+    rsbsa_number: '',
+    full_name: '',
+    gender: 'Male',
+    farmer_type: [] as string[],
+    civil_status: 'Married',
+    membership: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    is_verified: false
+  });
+
+  const farmerTypes = ['Rice', 'Corn', 'High-Value Crops', 'Livestock', 'Fisherfolk'];
 
   useEffect(() => {
     fetchRecipients();
@@ -31,6 +51,55 @@ export default function Recipients() {
     setLoading(false);
   }
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    
+    const { error } = await supabase.from('recipients').insert([formData]);
+
+    if (!error) {
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        setShowAddModal(false);
+        fetchRecipients();
+      }, 1500);
+      setFormData({
+        rsbsa_number: '',
+        full_name: '',
+        gender: 'Male',
+        farmer_type: [],
+        civil_status: 'Married',
+        membership: '',
+        latitude: null,
+        longitude: null,
+        is_verified: false
+      });
+    }
+    setSubmitting(false);
+  };
+
+  const toggleFarmerType = (type: string) => {
+    setFormData(prev => ({
+      ...prev,
+      farmer_type: prev.farmer_type.includes(type)
+        ? prev.farmer_type.filter(t => t !== type)
+        : [...prev.farmer_type, type]
+    }));
+  };
+
+  const captureLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setFormData(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude
+        }));
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -38,7 +107,10 @@ export default function Recipients() {
           <h2 className="text-2xl font-bold tracking-tight">RSBSA Masterlist</h2>
           <p className="text-stone-500">Verified farmer database with geolocation.</p>
         </div>
-        <button className="bg-[#141414] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-stone-800 transition-all">
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-[#141414] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-stone-800 transition-all"
+        >
           <UserPlus size={20} />
           Register Farmer
         </button>
@@ -153,6 +225,154 @@ export default function Recipients() {
           </table>
         </div>
       </div>
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden">
+            <div className="p-6 bg-[#141414] text-white flex items-center justify-between">
+              <h3 className="text-xl font-bold">Register New Farmer</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleRegister} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+              {success && (
+                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-xl flex items-center gap-2 border border-emerald-100">
+                  <CheckCircle2 size={20} />
+                  <span className="font-bold">Farmer registered successfully!</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">RSBSA Number</label>
+                  <input 
+                    required
+                    type="text"
+                    value={formData.rsbsa_number}
+                    onChange={(e) => setFormData({...formData, rsbsa_number: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    placeholder="07-12-34-567-890"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Full Name</label>
+                  <input 
+                    required
+                    type="text"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Juan Dela Cruz"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Gender</label>
+                  <select 
+                    required
+                    value={formData.gender}
+                    onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Civil Status</label>
+                  <select 
+                    required
+                    value={formData.civil_status}
+                    onChange={(e) => setFormData({...formData, civil_status: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Separated">Separated</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-stone-400 uppercase">Farmer Type (Select all that apply)</label>
+                <div className="flex flex-wrap gap-2">
+                  {farmerTypes.map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => toggleFarmerType(type)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        formData.farmer_type.includes(type)
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-stone-50 text-stone-500 border-stone-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-stone-400 uppercase">Farmers Association / Cooperative</label>
+                <input 
+                  type="text"
+                  value={formData.membership}
+                  onChange={(e) => setFormData({...formData, membership: e.target.value})}
+                  className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="e.g. San Isidro Farmers Association"
+                />
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-blue-800 uppercase">Farm Geotagging</p>
+                    <p className="text-[10px] text-blue-600">
+                      {formData.latitude ? `${formData.latitude.toFixed(4)}, ${formData.longitude?.toFixed(4)}` : 'Location not captured'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={captureLocation}
+                  className="px-4 py-2 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-all"
+                >
+                  Capture GPS
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-stone-50 rounded-2xl border border-stone-200">
+                <input 
+                  type="checkbox"
+                  id="is_verified"
+                  checked={formData.is_verified}
+                  onChange={(e) => setFormData({...formData, is_verified: e.target.checked})}
+                  className="w-5 h-5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <label htmlFor="is_verified" className="text-sm font-bold text-stone-600">
+                  Mark as Verified (RSBSA Validated)
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-[#141414] text-white p-4 rounded-xl font-bold hover:bg-stone-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="animate-spin" /> : 'Register Farmer Record'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

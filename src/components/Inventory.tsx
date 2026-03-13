@@ -8,19 +8,44 @@ import {
   FileUp,
   Package,
   History,
-  Download
+  Download,
+  X,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 export default function Inventory() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const [formData, setFormData] = useState({
+    item_name: '',
+    batch_number: '',
+    supplier: '',
+    storage_location: '',
+    quantity: 0,
+    unit: 'Bags',
+    expiry_date: '',
+    reorder_level: 10,
+    program_id: ''
+  });
+
+  const [programs, setPrograms] = useState<any[]>([]);
 
   useEffect(() => {
     fetchInventory();
+    fetchPrograms();
   }, []);
+
+  async function fetchPrograms() {
+    const { data } = await supabase.from('programs').select('*').eq('is_active', true);
+    if (data) setPrograms(data);
+  }
 
   async function fetchInventory() {
     setLoading(true);
@@ -33,6 +58,34 @@ export default function Inventory() {
     if (data) setItems(data);
     setLoading(false);
   }
+
+  const handleAddStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    
+    const { error } = await supabase.from('inventory').insert([formData]);
+
+    if (!error) {
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        setShowAddModal(false);
+        fetchInventory();
+      }, 1500);
+      setFormData({
+        item_name: '',
+        batch_number: '',
+        supplier: '',
+        storage_location: '',
+        quantity: 0,
+        unit: 'Bags',
+        expiry_date: '',
+        reorder_level: 10,
+        program_id: ''
+      });
+    }
+    setSubmitting(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -129,6 +182,110 @@ export default function Inventory() {
           ))
         )}
       </div>
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden">
+            <div className="p-6 bg-[#141414] text-white flex items-center justify-between">
+              <h3 className="text-xl font-bold">New Stock Entry</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddStock} className="p-8 space-y-6">
+              {success && (
+                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-xl flex items-center gap-2 border border-emerald-100">
+                  <CheckCircle2 size={20} />
+                  <span className="font-bold">Stock added to inventory!</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Item Name</label>
+                  <input 
+                    required
+                    type="text"
+                    value={formData.item_name}
+                    onChange={(e) => setFormData({...formData, item_name: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. Hybrid Rice Seeds"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Batch / Lot Number</label>
+                  <input 
+                    required
+                    type="text"
+                    value={formData.batch_number}
+                    onChange={(e) => setFormData({...formData, batch_number: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. BATCH-2025-001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Supplier / Origin</label>
+                  <select 
+                    required
+                    value={formData.supplier}
+                    onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select Supplier...</option>
+                    <option value="PhilRice">PhilRice</option>
+                    <option value="DA-RFO7">DA-RFO7</option>
+                    <option value="Private Contractor">Private Contractor</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Storage Location</label>
+                  <select 
+                    required
+                    value={formData.storage_location}
+                    onChange={(e) => setFormData({...formData, storage_location: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select Location...</option>
+                    <option value="Warehouse A">Warehouse A</option>
+                    <option value="Office Stockroom">Office Stockroom</option>
+                    <option value="Barangay Hall">Barangay Hall</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Quantity</label>
+                  <input 
+                    required
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({...formData, quantity: Number(e.target.value)})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Expiry Date</label>
+                  <input 
+                    required
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-[#141414] text-white p-4 rounded-xl font-bold hover:bg-stone-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="animate-spin" /> : 'Save Stock Record'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
